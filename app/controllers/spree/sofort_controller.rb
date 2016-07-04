@@ -6,14 +6,14 @@ class Spree::SofortController < ApplicationController
     sofort_payment = Spree::Payment.find_by_sofort_hash(params[:sofort_hash])
     if params.blank? or params[:sofort_hash].blank? or sofort_payment.blank?
        flash[:error] = I18n.t("sofort.payment_not_found")
-       redirect_to '/checkout/payment', :status => 302
+       redirect_to checkout_state_path(:payment), :status => 302
        return
     end
 
     order = sofort_payment.order
     if order.blank?
      	flash[:error] = I18n.t("sofort.order_not_found")
-     	redirect_to '/checkout/payment', :status => 302
+     	redirect_to checkout_state_path(:payment), :status => 302
      	return
     end
 
@@ -32,7 +32,7 @@ class Spree::SofortController < ApplicationController
 
   def cancel
     flash[:error] = I18n.t("sofort.canceled")
-    redirect_to '/checkout/payment', :status => 302
+    redirect_to checkout_state_path(:payment), :status => 302
   end
 
   def status

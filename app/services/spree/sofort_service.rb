@@ -5,6 +5,14 @@ module Spree
 
     include Singleton
 
+    def url_helpers
+      Spree.railtie_routes_url_helpers
+    end
+
+    def url_options
+      Rails.application.routes.default_url_options
+    end
+
     # make the initialization request
     # https://www.sofort.com/integrationCenter-ger-DE/content/view/full/2513#h6-1
     # https://www.sofort.com/integrationCenter-ger-DE/content/view/full/2513#h6-2
@@ -81,7 +89,7 @@ module Spree
 
     def init_payment(payment)
       @sofort_payment = payment
-      @cancel_url = "/checkout/payment"
+      @cancel_url = url_helpers.checkout_state_path(:payment)
 
       raise I18n.t("sofort.config_key_is_blank") if @sofort_payment.payment_method.preferred_config_key.blank?
       config_key_parts = @sofort_payment.payment_method.preferred_config_key.split(":")
@@ -100,17 +108,16 @@ module Spree
       }
     end
 
-    def initial_request_body ref_number
-      base_url = "http://#{Spree::Store.current.url}"
-      notification_url = (Spree::Store.current.url.blank? or Spree::Store.current.url.start_with?("localhost")) ? "" : "#{base_url}/sofort/status"
+    def initial_request_body(ref_number)
+      notification_url = url_options[:host] == 'localhost' ? '' : url_helpers.sofort_status_url(url_options)
       body_hash = {
         :su => { },
         :amount => @order.total,
         :currency_code => Spree::Config.currency,
         :reasons => {:reason => ref_number},
-        :success_url => "#{base_url}/sofort/success?sofort_hash=#{@sofort_payment.sofort_hash}",
+        :success_url => url_helpers.sofort_success_url(url_options.merge(sofort_hash: @sofort_payment.sofort_hash)),
         :success_link_redirect => "1",
-        :abort_url => "#{base_url}/sofort/cancel",
+        :abort_url => url_helpers.sofort_cancel_url(url_options),
         # no url with port as notification url allowed
         :notification_urls => {:notification_url => notification_url},
         :project_id => @project_id
@@ -138,9 +145,11 @@ module Spree
         response[:transaction] = ""
         all_errors = raw_response.parsed_response["errors"]["error"]
         if all_errors.kind_of?(Array)
-          response[:error] = I18n.t("sofort.error_from_sofort")+": "+(all_errors.map { |e| "#{e['field']}: #{e['message']}" }.join(", "))
+          messages = all_errors.map { |e| "#{e['field']}: #{e['message']}" }.join(", ")
+          response[:error] = "#{I18n.t("sofort.error_from_sofort")}: #{messages}"
         else
-          response[:error] = I18n.t("sofort.error_from_sofort")+": "+all_errors["field"]+":"+all_errors["message"]
+          message = "#{all_errors['field']}: #{all_errors['message']}"
+          response[:error] = "#{I18n.t("sofort.error_from_sofort")}: #{message}"
         end
       else
         response[:redirect_url] = raw_response.parsed_response["new_transaction"]["payment_url"]
