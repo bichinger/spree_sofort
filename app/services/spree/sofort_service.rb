@@ -120,7 +120,9 @@ module Spree
         :abort_url => url_helpers.sofort_cancel_url(url_options),
         # no url with port as notification url allowed
         :notification_urls => {:notification_url => notification_url},
-        :project_id => @project_id
+        :project_id => @project_id,
+        # UGLY HACK: this should be passed, not hardcoded here
+        :sender => {country_code: @order.ship_address.country.iso}
       }
       body_hash.to_xml(:dasherize => false, :root => 'multipay',
                        :root_attrs => {:version => '1.0'})
