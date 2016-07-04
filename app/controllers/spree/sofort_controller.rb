@@ -44,7 +44,7 @@ class Spree::SofortController < ApplicationController
   private
 
   def success_redirect order
-    redirect_to "/orders/#{order.number}", :status => 302
+    redirect_to order_path(order.number), :status => 302
   end
 
 end
