@@ -5,29 +5,27 @@ class Spree::SofortController < ApplicationController
   def success
     sofort_payment = Spree::Payment.find_by_sofort_hash(params[:sofort_hash])
     if params.blank? or params[:sofort_hash].blank? or sofort_payment.blank?
-       flash[:error] = I18n.t("sofort.payment_not_found")
-       redirect_to checkout_state_path(:payment), :status => 302
-       return
+      flash[:error] = I18n.t("sofort.payment_not_found")
+      redirect_to checkout_state_path(:payment), :status => 302
+      return
     end
 
     order = sofort_payment.order
     if order.blank?
-     	flash[:error] = I18n.t("sofort.order_not_found")
-     	redirect_to checkout_state_path(:payment), :status => 302
-     	return
+      flash[:error] = I18n.t("sofort.order_not_found")
+      redirect_to checkout_state_path(:payment), :status => 302
+      return
     end
 
-    if order.state.eql? "complete"  # complete again via browser back or recalling sofort "go" url
-      success_redirect order
-    else
-      order.finalize!
-      order.state = "complete"
-      order.save!
+    order.next unless order.complete?
+    if order.complete?
+      flash.notice = Spree.t(:order_processed_successfully)
+      flash[:order_completed] = true
       session[:order_id] = nil
-      flash[:success] = I18n.t("sofort.completed_successfully")
-      success_redirect order
+      success_redirect(order)
+    else
+      redirect_to checkout_state_path(order.state)
     end
-
   end
 
   def cancel
